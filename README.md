@@ -1,4 +1,4 @@
-# 🎤 Speech Combined - HR Interview System
+# Speech Combined - HR Interview System
 
 1. **Установка зависимостей:**
 ```bash
@@ -30,7 +30,7 @@ python main.py
 http://localhost:8007
 ```
 
-## ⚙️ Настройки
+## Настройки
 
 Основные настройки в `backend/settings.py`:
 - `SILENCE_THRESHOLD = 5.0` - время тишины для обработки (сек)
