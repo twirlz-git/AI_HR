@@ -1,0 +1,10 @@
+fastapi
+uvicorn[standard]
+websockets
+vosk
+numpy
+openai
+python-dotenv
+python-multipart
+pymupdf4llm
+python-docx
