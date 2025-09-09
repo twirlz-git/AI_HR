@@ -1,7 +1,0 @@
-fastapi
-uvicorn[standard]
-websockets
-vosk
-numpy
-openai
-python-dotenv
