@@ -169,7 +169,7 @@ async def websocket_endpoint(websocket: WebSocket):
         while True:
             # Получаем данные от клиента
             data = await websocket.receive()
-            logger.debug(f"📦 Raw WebSocket data: type={data.get('type')}, has_bytes={'bytes' in data}, has_text={'text' in data}")
+            logger.debug(f"Raw WebSocket data: type={data.get('type')}, has_bytes={'bytes' in data}, has_text={'text' in data}")
             
             # Проверяем тип сообщения
             if data["type"] == "websocket.disconnect":
@@ -188,14 +188,14 @@ async def websocket_endpoint(websocket: WebSocket):
                     # Обрабатываем текстовые команды
                     try:
                         message = json.loads(data["text"])
-                        logger.info(f"📨 Received message: {message}")
+                        logger.info(f"Received message: {message}")
                         if message.get("action") == "start_interview":
                             logger.info("Starting HR interview")
                             result = vosk_handler.hr_interviewer.start_interview()
                             await websocket.send_json(result)
                         elif message.get("action") == "start_recording":
-                            logger.info("🎤 Запись включена")
-                            logger.info(f"📊 Interview active: {vosk_handler.hr_interviewer.interview_active}, Question {vosk_handler.hr_interviewer.current_question}/{vosk_handler.hr_interviewer.total_questions}")
+                            logger.info("Запись включена")
+                            logger.info(f"Interview active: {vosk_handler.hr_interviewer.interview_active}, Question {vosk_handler.hr_interviewer.current_question}/{vosk_handler.hr_interviewer.total_questions}")
                             
                             # Только для первого запуска
                             if not processing_task or processing_task.done():
@@ -213,7 +213,7 @@ async def websocket_endpoint(websocket: WebSocket):
                                 processing_task = asyncio.create_task(vosk_handler.process_stream(websocket))
                             
                             if not vosk_handler.hr_interviewer.interview_active:
-                                logger.warning("⚠️ Интервью завершено! Кнопка записи больше не работает.")
+                                logger.warning("Интервью завершено! Кнопка записи больше не работает.")
                         elif message.get("action") == "reset_timer":
                             vosk_handler.reset_speech_timer()
                     except Exception as e:

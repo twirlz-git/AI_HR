@@ -32,7 +32,7 @@ class VoskHandler(BaseSTT):
         return True
     
     async def process_stream(self, websocket: WebSocket):
-        logger.info(f"🚀 Starting process_stream, session_active={self.session_active}")
+        logger.info(f"Starting process_stream, session_active={self.session_active}")
         last_processed_time = time.time()
         self.last_speech_time = time.time()  # Используем атрибут класса 
         
@@ -98,8 +98,8 @@ class VoskHandler(BaseSTT):
                 if (silence_duration >= settings.SILENCE_THRESHOLD and
                     self.hr_interviewer.interview_active):
                     
-                    logger.info(f"🔄 Silence detected ({settings.SILENCE_THRESHOLD}s), processing answer...")
-                    logger.info(f"🔄 Sending processing_started message")
+                    logger.info(f"Silence detected ({settings.SILENCE_THRESHOLD}s), processing answer...")
+                    logger.info(f"Sending processing_started message")
 
                     # Показываем спиннер
                     try:
@@ -107,9 +107,9 @@ class VoskHandler(BaseSTT):
                             "type": "processing_started",
                             "message": "Начинаем обработку ответа..."
                         })
-                        logger.info(f"🔄 processing_started message sent")
+                        logger.info(f"processing_started message sent")
                     except Exception as e:
-                        logger.error(f"❌ Error sending processing_started: {e}")
+                        logger.error(f"Error sending processing_started: {e}")
                         return
                     
                     # СРАЗУ обрабатываем ответ
@@ -117,7 +117,7 @@ class VoskHandler(BaseSTT):
                     
                     # Проверяем, завершилось ли интервью
                     if not interview_continues:
-                        logger.info("🏁 Interview finished, exiting process_stream loop")
+                        logger.info("Interview finished, exiting process_stream loop")
                         break
                     
                     # Сбрасываем состояние
@@ -131,7 +131,7 @@ class VoskHandler(BaseSTT):
                 logger.error(f"Processing error: {e}")
                 await asyncio.sleep(1)
         
-        logger.warning(f"❌ process_stream loop exited! session_active={self.session_active}")
+        logger.warning(f"process_stream loop exited! session_active={self.session_active}")
     
     
     async def finalize_session(self, websocket: WebSocket):
@@ -147,7 +147,7 @@ class VoskHandler(BaseSTT):
                     await websocket.send_json(result)
                     logger.info("Answer processed, result sent")
                 except Exception as e:
-                    logger.error(f"❌ Error sending result: {e}")
+                    logger.error(f"Error sending result: {e}")
                     return
                 
                 # ВАЖНО: Сбрасываем состояние после обработки
@@ -169,7 +169,7 @@ class VoskHandler(BaseSTT):
                     await websocket.send_json(result)
                     logger.info("Silence processed, result sent")
                 except Exception as e:
-                    logger.error(f"❌ Error sending silence result: {e}")
+                    logger.error(f"Error sending silence result: {e}")
                     return
                 
                 # ВАЖНО: Сбрасываем состояние после обработки
@@ -192,7 +192,7 @@ class VoskHandler(BaseSTT):
     def stop_processing(self):
         """Stop current processing session"""
         self.session_active = False
-        logger.info("🛑 Запись остановлена")
+        logger.info("Запись остановлена")
     
     def is_model_loaded(self):
         """Проверка загружена ли модель"""

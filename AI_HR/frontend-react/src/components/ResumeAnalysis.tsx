@@ -68,7 +68,7 @@ const ResumeAnalysis: React.FC = () => {
 
   return (
     <div>
-      <h1>📄 Анализ резюме</h1>
+      <h1> Анализ резюме</h1>
       
 
       <div className="field">
@@ -121,7 +121,7 @@ const ResumeAnalysis: React.FC = () => {
             {isAnalyzing ? (
               <tr>
                 <td colSpan={2} className="loading-message">
-                  🔄 Анализируем резюме...
+                   Анализируем резюме...
                 </td>
               </tr>
             ) : results.length > 0 ? (

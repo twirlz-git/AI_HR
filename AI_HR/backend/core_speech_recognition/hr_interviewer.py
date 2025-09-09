@@ -59,25 +59,25 @@ class HRInterviewer:
             return {"type": "error", "message": "Интервью не активно"}
         
         # 1. Improve answer through OpenRouter
-        # logger.info("🔄 Improving answer via OpenRouter...")
+        # logger.info("Improving answer via OpenRouter...")
         try:
             improved_answer = await self.openrouter.process_text(answer_text)
-            # logger.info(f"✅ Answer improved: '{improved_answer}'")
+            # logger.info(f"Answer improved: '{improved_answer}'")
         except Exception as e:
-            logger.error(f"❌ Error improving answer: {e}")
+            logger.error(f"Error improving answer: {e}")
             improved_answer = answer_text
         
         # 2. Evaluate answer
-        # logger.info("🔄 Evaluating answer...")
+        # logger.info("Evaluating answer...")
         try:
             evaluation = await self.openrouter.evaluate_answer(
                 self.current_question_text, 
                 improved_answer, 
                 self.job_profile
             )
-            # logger.info(f"✅ Answer evaluated: {evaluation}")
+            # logger.info(f"Answer evaluated: {evaluation}")
         except Exception as e:
-            logger.error(f"❌ Error evaluating answer: {e}")
+            logger.error(f"Error evaluating answer: {e}")
             evaluation = {"score": 50, "feedback": "Не удалось оценить ответ"}
         
         # 3. Add to conversation history
@@ -87,24 +87,24 @@ class HRInterviewer:
             "raw_answer": answer_text,
             "evaluation": evaluation
         })
-        # logger.info(f"📝 Added to history: Q{self.current_question + 1}")
+        # logger.info(f"Added to history: Q{self.current_question + 1}")
         
         # 4. Move to next question
         self.current_question += 1
-        # logger.info(f"➡️ Moving to question {self.current_question + 1}/{self.total_questions}")
+        # logger.info(f"Moving to question {self.current_question + 1}/{self.total_questions}")
         
         if self.current_question < self.total_questions:
             # 5. Generate next question
-            # logger.info("🔄 Generating next question...")
+            # logger.info("Generating next question...")
             try:
                 next_interaction = await self.openrouter.generate_hr_interaction(
                     self.job_profile, 
                     self.conversation_history
                 )
                 self.current_question_text = next_interaction
-                # logger.info(f"✅ Next question generated: '{next_interaction}'")
+                # logger.info(f"Next question generated: '{next_interaction}'")
             except Exception as e:
-                logger.error(f"❌ Error generating next question: {e}")
+                logger.error(f"Error generating next question: {e}")
                 self.current_question_text = f"Расскажите подробнее о вашем опыте (вопрос {self.current_question + 1})"
             
             next_question = {
@@ -121,11 +121,11 @@ class HRInterviewer:
                 "evaluation": evaluation,
                 "next_question": next_question
             }
-            # logger.info("✅ Returning answer_processed with next question")
+            # logger.info("Returning answer_processed with next question")
             return result
         else:
             # Interview finished
-            # logger.info("🏁 Interview finished, generating final result")
+            # logger.info("Interview finished, generating final result")
             return await self.finish_interview()
     
     async def finish_interview(self):
@@ -136,15 +136,15 @@ class HRInterviewer:
         closing_remarks = HRPrompts.CLOSING_REMARKS
         
         # Generate final feedback report
-        # logger.info("🔄 Generating final feedback report...")
+        # logger.info("Generating final feedback report...")
         try:
             final_report = await self.openrouter.generate_final_feedback(
                 self.conversation_history, 
                 self.job_profile
             )
-            # logger.info("✅ Final report generated")
+            # logger.info("Final report generated")
         except Exception as e:
-            logger.error(f"❌ Error generating final report: {e}")
+            logger.error(f"Error generating final report: {e}")
             final_report = "Не удалось сгенерировать итоговый отчет"
         
         return {
