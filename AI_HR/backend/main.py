@@ -135,7 +135,7 @@ async def upload_analyze(job: UploadFile = File(...), resumes: List[UploadFile] 
                 
                 cand = _analyze_candidate(cv_text)
                 match = _analyze_matching(job_info, cand)
-                name = cand.get("candidate_name") or f.filename
+                name = f.filename
                 score = match.get("score", 0.0)
                 out.append({"name": name, "score": score})
                 logger.info(f"Resume file {i+1} processed: {name} - score: {score}")

@@ -51,7 +51,7 @@ prompts = {
         "system_candidate": "Let's think step by step. Return ONLY JSON.",
         "user_candidate": (
             "Analyze this CV. Return ONLY valid JSON with keys: "
-            "candidate_name, phone_number, email, degree, experience, technical_skill, "
+            "phone_number, email, degree, experience, technical_skill, "
             "responsibility, certificate, soft_skill, comment.\n\n{cv_content}"
         ),
         "system_job": "Let's think step by step. Return ONLY JSON.",
@@ -61,7 +61,7 @@ prompts = {
         ),
         "system_matching": (
             "Compare candidate and job. Return ONLY JSON with sections degree, experience, technical_skill, "
-            "responsibility, certificate, soft_skill (each has score and comment), and summary_comment."
+            "responsibility, certificate, soft_skill (each has score from 0 to 100 and comment), and summary_comment."
         ),
         "user_matching": (
             "JOB REQUIREMENTS: {job_json}\nCANDIDATE PROFILE: {candidate_json}\nReturn ONLY JSON."
@@ -71,7 +71,7 @@ prompts = {
         "system_candidate": "Давай рассуждать по шагам. Верни ТОЛЬКО JSON.",
         "user_candidate": (
             "Проанализируй резюме. Верни ТОЛЬКО валидный JSON со значениями: "
-            "candidate_name, phone_number, email, degree, experience, technical_skill, responsibility, certificate, soft_skill, comment.\n\n{cv_content}"
+            "phone_number, email, degree, experience, technical_skill, responsibility, certificate, soft_skill, comment.\n\n{cv_content}"
         ),
         "system_job": "Давай рассуждать по шагам. Верни ТОЛЬКО JSON.",
         "user_job": (
@@ -80,7 +80,7 @@ prompts = {
         ),
         "system_matching": (
             "Сравни кандидата и вакансию. Верни ТОЛЬКО JSON с разделами degree, experience, technical_skill, "
-            "responsibility, certificate, soft_skill (каждый со score и comment), и summary_comment."
+            "responsibility, certificate, soft_skill (каждый со score от 0 до 100 и comment), и summary_comment."
         ),
         "user_matching": (
             "ТРЕБОВАНИЯ ВАКАНСИИ: {job_json}\nПРОФИЛЬ КАНДИДАТА: {candidate_json}\nВерни ТОЛЬКО JSON."
@@ -104,7 +104,7 @@ def _extract_json(content: str) -> Dict:
 
 def analyze_candidate(cv_content: str) -> Dict:
     if not _client:
-        return {"candidate_name": "Unknown", "comment": "LLM not configured"}
+        return {"comment": "LLM not configured"}
     lang = detect_language(cv_content)
     system_prompt = prompts[lang]["system_candidate"]
     user_prompt = prompts[lang]["user_candidate"].format(cv_content=cv_content)
@@ -113,7 +113,7 @@ def analyze_candidate(cv_content: str) -> Dict:
         messages=[{"role": "system", "content": system_prompt}, {"role": "user", "content": user_prompt}],
         temperature=0.1,
     )
-    return _extract_json(completion.choices[0].message.content) or {"candidate_name": "Unknown"}
+    return _extract_json(completion.choices[0].message.content) or {}
 
 
 def analyze_job(job_description: str) -> Dict:
