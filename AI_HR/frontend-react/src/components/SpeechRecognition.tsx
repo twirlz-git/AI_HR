@@ -30,7 +30,7 @@ const SpeechRecognition: React.FC = () => {
   const [status, setStatus] = useState('Добро пожаловать в AI систему HR! Вам будет задано несколько вопросов. Для каждого вопроса у вас есть время внимательно его прочитать и подготовиться к ответу. Когда будете готовы, нажимайте кнопку "Начать запись".');
   const [statusType, setStatusType] = useState<'connected' | 'disconnected' | 'recording'>('connected');
   const [accumulatedText, setAccumulatedText] = useState('');
-  const [improvedText, setImprovedText] = useState('Улучшенный текст появится здесь...');
+  const [improvedText, setImprovedText] = useState('Улучшенный текст(с помощью LLM) появится здесь...');
   const [currentQuestion, setCurrentQuestion] = useState<string>('');
   const [questionCounter, setQuestionCounter] = useState<string>('');
   const [showQuestion, setShowQuestion] = useState(false);
@@ -78,7 +78,6 @@ const SpeechRecognition: React.FC = () => {
       setQuestionCounter(`Вопрос ${data.question_number} из ${data.total_questions}`);
       setShowQuestion(true);
       setIsWaitingForAnswer(true);
-      updateStatus('Прочитайте вопрос и нажмите "Начать запись" когда будете готовы отвечать', 'connected');
       
       // НЕ сбрасываем таймер автоматически - только при нажатии кнопки "Начать запись"
     }
@@ -108,7 +107,7 @@ const SpeechRecognition: React.FC = () => {
       
       // Очищаем предыдущий текст
       setAccumulatedText('');
-      setImprovedText('Улучшенный текст появится здесь...');
+      setImprovedText('Улучшенный текст(с помощью LLM) появится здесь...');
       
       // Показываем улучшенный ответ
       setImprovedText(data.improved_answer || '');
@@ -119,10 +118,19 @@ const SpeechRecognition: React.FC = () => {
         setCurrentQuestion(data.next_question.question);
         setQuestionCounter(`Вопрос ${data.next_question.question_number} из ${data.next_question.total_questions}`);
         setShowQuestion(true);
-        setIsWaitingForAnswer(false); // Не ждем нажатия кнопки
-        setIsRecording(true); // Автоматически продолжаем запись
-        console.log(' Состояния установлены: showQuestion=true, автоматическая запись');
-        updateStatus('Слушаю ваш ответ...', 'recording');
+        
+        // НОВАЯ ЛОГИКА: Для 2-го вопроса и далее - ждем нажатия кнопки
+        if (data.next_question.question_number >= 2) {
+          setIsWaitingForAnswer(true); // Ждем нажатия кнопки
+          setIsRecording(false); // НЕ автоматически продолжаем запись
+          console.log(' Вопрос >=2: ждем нажатия кнопки');
+          // Не показываем статус-подсказку на экране
+        } else {
+          setIsWaitingForAnswer(false); // Не ждем нажатия кнопки для первого вопроса
+          setIsRecording(true); // Автоматически продолжаем запись
+          console.log(' Первый вопрос: автоматическая запись');
+          updateStatus('Слушаю ваш ответ...', 'recording');
+        }
       }
     }
     
@@ -139,6 +147,8 @@ const SpeechRecognition: React.FC = () => {
       setCurrentQuestion(' Интервью завершено!');
       setQuestionCounter('');
       setImprovedText('');
+      setShowQuestion(false);
+      setAccumulatedText('');
       
       // Сохраняем финальный отчет
       if (data.final_report) {
@@ -222,7 +232,11 @@ const SpeechRecognition: React.FC = () => {
       console.log(' Сбрасываем таймер на backend при начале записи');
       wsRef.current.send(JSON.stringify({action: "reset_timer"}));
       
-      // Отправляем команду на backend для запуска process_stream
+      // НОВОЕ: Активируем прослушивание для 2-го+ вопроса
+      console.log(' Активируем прослушивание');
+      wsRef.current.send(JSON.stringify({action: "activate_listening"}));
+      
+      // Отправляем команду на backend для запуска process_stream (только первый раз)
       console.log(' Отправляем команду start_recording');
       try {
         const message = JSON.stringify({action: "start_recording"});
@@ -233,6 +247,7 @@ const SpeechRecognition: React.FC = () => {
       } catch (error) {
         console.error(' Error sending message:', error);
       }
+      
       
       setAccumulatedText('');
       setImprovedText('');
@@ -262,8 +277,7 @@ const SpeechRecognition: React.FC = () => {
       
       mediaRecorderRef.current.start(100);
       setIsRecording(true);
-      
-      updateStatus('Запись... (говорите в микрофон)', 'recording');
+      // Не показываем статусовую надпись о записи
       
     } catch (error) {
       console.error('Recording start error:', error);
@@ -303,95 +317,10 @@ const SpeechRecognition: React.FC = () => {
 
   return (
     <div>
-      <h1>AI HR интервьюер</h1>
-      
-      <div className={`status ${statusType}`}>{status}</div>
-      
-      <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', margin: '20px 0' }}>
-        {!isInterviewMode && !isConnected && (
-          <button 
-            className="start" 
-            onClick={async () => {
-              await connect();
-              // После подключения автоматически запускаем интервью
-              setTimeout(() => {
-                if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
-                  startInterview();
-                }
-              }, 500);
-            }}
-          >
-            Подключиться и начать интервью
-          </button>
-        )}
-      </div>
-      
-      {showQuestion && (
-        <div className="interview-question">
-          <h3> HR Интервьюер</h3>
-          <div style={{ textAlign: 'center', fontSize: '16px', marginBottom: '15px', color: '#666' }}>
-            {questionCounter}
-          </div>
-          <div style={{ fontSize: '24px', fontWeight: 'bold', lineHeight: '1.4', marginBottom: '15px' }}>
-            {currentQuestion}
-          </div>
-          {isWaitingForAnswer && (
-            <div style={{ marginTop: '10px', padding: '10px', background: '#fff3cd', borderRadius: '6px', fontSize: '14px' }}>
-              {isRecording 
-                ? " Говорите ваш ответ. Через 5 секунд молчания ответ будет автоматически обработан."
-                : "Когда будете готовы, нажимайте кнопку \"Начать запись\"."
-              }
-            </div>
-          )}
-          
-          {/* Кнопка "Начать запись" под вопросом */}
-          {(() => {
-            console.log(' Проверка показа кнопки:', { isInterviewMode, isWaitingForAnswer, isConnected, isRecording });
-            return isInterviewMode && isWaitingForAnswer;
-          })() && (
-            <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
-              <button 
-                className="start" 
-                onClick={isRecording ? stopRecording : startRecording}
-                disabled={!isConnected}
-                style={{ 
-                  fontSize: '18px', 
-                  padding: '12px 24px',
-                  backgroundColor: isRecording ? '#dc3545' : '#28a745',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '8px',
-                  cursor: 'pointer'
-                }}
-              >
-                {isRecording ? 'Остановить запись' : 'Начать запись'}
-              </button>
-            </div>
-          )}
-        </div>
-      )}
-      
-      <div className="results">
-        {accumulatedText ? (
-          <div style={{ fontSize: '20px', lineHeight: '1.6', padding: '20px' }}>
-            {accumulatedText}
-          </div>
-        ) : (
-          <p>Ваш ответ появится здесь...</p>
-        )}
-      </div>
-      
-      <div className="results" style={{ marginTop: '20px', borderLeft: '4px solid #28a745' }}>
-        <h3 style={{ color: '#28a745', marginBottom: '10px' }}> Улучшенный текст:</h3>
-        <div style={{ fontSize: '18px', lineHeight: '1.6', padding: '15px', background: '#f8fff8', whiteSpace: 'pre-wrap' }}>
-          {improvedText}
-        </div>
-      </div>
-
-      {/* Final Report */}
+      {/* Если есть финальный отчет — показываем только его */}
       {finalReport && (
         <div style={{
-          marginTop: '30px',
+          marginTop: '10px',
           padding: '20px',
           backgroundColor: '#f0f8ff',
           borderRadius: '10px',
@@ -416,6 +345,105 @@ const SpeechRecognition: React.FC = () => {
             borderRadius: '8px'
           }}>
             {finalReport}
+          </div>
+        </div>
+      )}
+
+      {/* Скрываем остальной интерфейс, если показан финальный отчет */}
+      {!finalReport && (
+        <div>
+          <h1>AI HR интервьюер</h1>
+          <div className={`status ${statusType}`}>{status}</div>
+          <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', margin: '20px 0' }}>
+            {!isInterviewMode && !isConnected && (
+              <button 
+                className="start" 
+                onClick={async () => {
+                  await connect();
+                  setTimeout(() => {
+                    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+                      startInterview();
+                    }
+                  }, 500);
+                }}
+              >
+                Подключиться и начать интервью
+              </button>
+            )}
+          </div>
+
+          {showQuestion && (
+            <div className="interview-question">
+              <h3> HR Интервьюер</h3>
+              <div style={{ textAlign: 'center', fontSize: '16px', marginBottom: '15px', color: '#666' }}>
+                {questionCounter}
+              </div>
+              <div style={{ fontSize: '24px', fontWeight: 'bold', lineHeight: '1.4', marginBottom: '15px' }}>
+                {currentQuestion}
+              </div>
+              {isWaitingForAnswer && (
+                <div style={{ marginTop: '10px', padding: '10px', background: '#fff3cd', borderRadius: '6px', fontSize: '14px' }}>
+                  {isRecording 
+                    ? " Говорите ваш ответ. Через 5 секунд молчания ответ будет автоматически обработан."
+                    : "Когда будете готовы, нажимайте кнопку \"Начать запись\"."
+                  }
+                </div>
+              )}
+              {(() => {
+                console.log(' Проверка показа кнопки:', { isInterviewMode, isWaitingForAnswer, isConnected, isRecording });
+                return isInterviewMode && isWaitingForAnswer;
+              })() && (
+                <div style={{ display: 'flex', justifyContent: 'center', marginTop: '20px' }}>
+                  {isRecording ? (
+                    <div style={{ 
+                      fontSize: '18px', 
+                      padding: '12px 24px',
+                      backgroundColor: '#ffc107',
+                      color: '#212529',
+                      border: 'none',
+                      borderRadius: '8px',
+                      fontWeight: 'bold'
+                    }}>
+                      Идет запись
+                    </div>
+                  ) : (
+                    <button 
+                      className="start" 
+                      onClick={startRecording}
+                      disabled={!isConnected}
+                      style={{ 
+                        fontSize: '18px', 
+                        padding: '12px 24px',
+                        backgroundColor: '#28a745',
+                        color: 'white',
+                        border: 'none',
+                        borderRadius: '8px',
+                        cursor: 'pointer'
+                      }}
+                    >
+                      Начать запись
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="results">
+            {accumulatedText ? (
+              <div style={{ fontSize: '20px', lineHeight: '1.6', padding: '20px' }}>
+                {accumulatedText}
+              </div>
+            ) : (
+              <p>Ваш ответ появится здесь...</p>
+            )}
+          </div>
+
+          <div className="results" style={{ marginTop: '20px', borderLeft: '4px solid #28a745' }}>
+            <h3 style={{ color: '#28a745', marginBottom: '10px' }}> Улучшенный текст:</h3>
+            <div style={{ fontSize: '18px', lineHeight: '1.6', padding: '15px', background: '#f8fff8', whiteSpace: 'pre-wrap' }}>
+              {improvedText}
+            </div>
           </div>
         </div>
       )}

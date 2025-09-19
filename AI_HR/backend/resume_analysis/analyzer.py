@@ -1,4 +1,5 @@
 import json
+import logging
 import os
 import re
 import tempfile
@@ -6,6 +7,8 @@ import urllib.parse
 from typing import Dict, Optional
 
 from openai import OpenAI
+
+logger = logging.getLogger(__name__)
 
 try:
     import pymupdf4llm  # PDF extractor
@@ -15,6 +18,18 @@ try:
     import docx  # python-docx
 except Exception:
     docx = None
+try:
+    from striprtf.striprtf import rtf_to_text  # RTF parser
+except Exception:
+    rtf_to_text = None
+try:
+    from bs4 import BeautifulSoup  # HTML parser
+except Exception:
+    BeautifulSoup = None
+try:
+    import chardet  # Character encoding detection
+except Exception:
+    chardet = None
 
 
 LLM_MODEL = "anthropic/claude-3.5-sonnet"
@@ -148,26 +163,108 @@ def _clean_text(raw_text: str) -> str:
 
 
 def parse_upload_to_text(upload) -> str:
-    suffix = os.path.splitext(getattr(upload, 'filename', '') or '')[1].lower()
+    filename = getattr(upload, 'filename', 'unknown')
+    suffix = os.path.splitext(filename or '')[1].lower()
+    logger.info(f"Parsing file: {filename}, detected extension: {suffix}")
     tmp_path = None
     try:
         with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
             data = upload.file.read()
             tmp.write(data)
             tmp_path = tmp.name
+        
+        # PDF files
         if suffix == '.pdf' and pymupdf4llm:
             txt = pymupdf4llm.to_markdown(tmp_path)
             return _clean_text(txt)
+        
+        # Word documents
         if suffix in ('.docx', '.doc') and docx:
             try:
+                logger.info(f"Attempting to parse DOCX file: {getattr(upload, 'filename', 'unknown')}")
                 d = docx.Document(tmp_path)
-                txt = '\n'.join([p.text for p in d.paragraphs])
+                paragraphs = [p.text for p in d.paragraphs if p.text.strip()]
+                txt = '\n'.join(paragraphs)
+                logger.info(f"Successfully extracted {len(txt)} characters from DOCX")
+                if txt.strip():
+                    return _clean_text(txt)
+                else:
+                    logger.warning("DOCX file appears to be empty or contains no readable text")
+            except Exception as e:
+                logger.error(f"Error parsing DOCX file: {e}")
+                # Try alternative approach for corrupted DOCX files
+                try:
+                    import zipfile
+                    with zipfile.ZipFile(tmp_path, 'r') as zip_file:
+                        # Try to extract text from document.xml
+                        if 'word/document.xml' in zip_file.namelist():
+                            xml_content = zip_file.read('word/document.xml').decode('utf-8', errors='ignore')
+                            # Simple regex to extract text between XML tags
+                            import re
+                            text_matches = re.findall(r'<w:t[^>]*>([^<]*)</w:t>', xml_content)
+                            if text_matches:
+                                txt = ' '.join(text_matches)
+                                logger.info(f"Extracted text from DOCX XML: {len(txt)} characters")
+                                return _clean_text(txt)
+                except Exception as e2:
+                    logger.error(f"Alternative DOCX parsing also failed: {e2}")
+        
+        # RTF files
+        if suffix == '.rtf' and rtf_to_text:
+            try:
+                with open(tmp_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    rtf_content = f.read()
+                txt = rtf_to_text(rtf_content)
+                return _clean_text(txt)
+            except Exception:
+                # Try with different encodings
+                try:
+                    if chardet:
+                        detected = chardet.detect(data)
+                        encoding = detected.get('encoding', 'utf-8') if detected else 'utf-8'
+                    else:
+                        encoding = 'utf-8'
+                    
+                    rtf_content = data.decode(encoding, errors='ignore')
+                    txt = rtf_to_text(rtf_content)
+                    return _clean_text(txt)
+                except Exception:
+                    pass
+        
+        # HTML files
+        if suffix in ('.html', '.htm') and BeautifulSoup:
+            try:
+                if chardet:
+                    detected = chardet.detect(data)
+                    encoding = detected.get('encoding', 'utf-8') if detected else 'utf-8'
+                else:
+                    encoding = 'utf-8'
+                
+                html_content = data.decode(encoding, errors='ignore')
+                soup = BeautifulSoup(html_content, 'html.parser')
+                txt = soup.get_text(separator='\n')
                 return _clean_text(txt)
             except Exception:
                 pass
+        
+        # Plain text files with encoding detection
         try:
-            return _clean_text(data.decode('utf-8', errors='ignore'))
-        except Exception:
+            if chardet:
+                detected = chardet.detect(data)
+                encoding = detected.get('encoding', 'utf-8') if detected else 'utf-8'
+                logger.info(f"Detected encoding: {encoding}")
+                txt = data.decode(encoding, errors='ignore')
+            else:
+                txt = data.decode('utf-8', errors='ignore')
+            
+            if txt.strip():
+                logger.info(f"Successfully extracted {len(txt)} characters as plain text")
+                return _clean_text(txt)
+            else:
+                logger.warning("File appears to be empty")
+                return ''
+        except Exception as e:
+            logger.error(f"Error parsing as plain text: {e}")
             return ''
     finally:
         if tmp_path:

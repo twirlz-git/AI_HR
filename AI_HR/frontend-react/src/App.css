@@ -1,8 +1,8 @@
 body { 
   font-family: Arial, sans-serif; 
-  padding: 20px; 
-  background: #f5f5f5; 
   margin: 0;
+  min-height: 100vh;
+  background: transparent; 
 }
 
 .App {

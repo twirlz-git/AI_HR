@@ -216,6 +216,11 @@ async def websocket_endpoint(websocket: WebSocket):
                                 logger.warning("Интервью завершено! Кнопка записи больше не работает.")
                         elif message.get("action") == "reset_timer":
                             vosk_handler.reset_speech_timer()
+                        elif message.get("action") == "activate_listening":
+                            logger.info("🎤 Активируем прослушивание для следующего вопроса")
+                            vosk_handler.reset_speech_timer()  # Сбрасываем таймер при активации
+                            # Включаем gate: теперь 5 сек молчания снова активируют обработку
+                            vosk_handler.silence_gate_enabled = True
                     except Exception as e:
                         logger.error(f"Error processing text message: {e}")
                         
@@ -228,7 +233,11 @@ async def websocket_endpoint(websocket: WebSocket):
         await vosk_handler.finalize_session(websocket)
         
         # Очистка ресурсов
-        processing_task.cancel()
+        try:
+            if processing_task and not processing_task.done():
+                processing_task.cancel()
+        except Exception as e:
+            logger.warning(f"Failed to cancel processing task: {e}")
         vosk_handler.session_active = False
         
         # В режиме интервью не сбрасываем сессию полностью

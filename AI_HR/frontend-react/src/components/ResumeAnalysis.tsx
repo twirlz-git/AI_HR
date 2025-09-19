@@ -11,26 +11,42 @@ interface ApiResponse {
 }
 
 const ResumeAnalysis: React.FC = () => {
-  const [jobDescription, setJobDescription] = useState('');
-  const [resumes, setResumes] = useState<string[]>(['', '']);
   const [results, setResults] = useState<AnalysisResult[]>([]);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
+  const [jobFile, setJobFile] = useState<File | null>(null);
+  const [resumeFiles, setResumeFiles] = useState<File[]>([]);
+  const jobFileInputRef = useRef<HTMLInputElement>(null);
+  const resumeFileInputRef = useRef<HTMLInputElement>(null);
 
-  const addResumeField = () => {
-    setResumes([...resumes, '']);
+  const handleJobFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (file) {
+      setJobFile(file);
+    }
   };
 
-  const updateResume = (index: number, value: string) => {
-    const newResumes = [...resumes];
-    newResumes[index] = value;
-    setResumes(newResumes);
+  const handleResumeFilesUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    setResumeFiles(files);
   };
 
-  const analyzeText = async () => {
-    const filteredResumes = resumes.filter(resume => resume.trim());
-    
-    if (!jobDescription.trim() || !filteredResumes.length) {
-      alert('Введите описание вакансии и хотя бы одно резюме.');
+  const clearJobFile = () => {
+    setJobFile(null);
+    if (jobFileInputRef.current) {
+      jobFileInputRef.current.value = '';
+    }
+  };
+
+  const clearResumeFiles = () => {
+    setResumeFiles([]);
+    if (resumeFileInputRef.current) {
+      resumeFileInputRef.current.value = '';
+    }
+  };
+
+  const analyzeFiles = async () => {
+    if (!jobFile || resumeFiles.length === 0) {
+      alert('Загрузите файл описания вакансии и файлы резюме.');
       return;
     }
 
@@ -38,13 +54,15 @@ const ResumeAnalysis: React.FC = () => {
     setResults([]);
 
     try {
-      const response = await fetch('http://localhost:8007/analyze_resumes', {
+      const formData = new FormData();
+      formData.append('job', jobFile);
+      resumeFiles.forEach(file => {
+        formData.append('resumes', file);
+      });
+
+      const response = await fetch('http://localhost:8007/upload_analyze', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          job_description: jobDescription, 
-          resumes: filteredResumes 
-        })
+        body: formData
       });
 
       const data: ApiResponse = await response.json();
@@ -58,55 +76,84 @@ const ResumeAnalysis: React.FC = () => {
       console.log('Setting results:', data.results);
       setResults(data.results || []);
     } catch (error) {
-      console.error('Ошибка анализа резюме:', error);
-      alert('Ошибка анализа резюме. Проверьте подключение к серверу и настройки API.');
+      console.error('Ошибка анализа файлов:', error);
+      alert('Ошибка анализа файлов. Проверьте подключение к серверу и настройки API.');
     } finally {
       setIsAnalyzing(false);
     }
   };
 
 
+
   return (
     <div>
-      <h1> Анализ резюме</h1>
+      <h1>Анализ резюме</h1>
       
+      <div style={{ marginBottom: '20px', padding: '15px', border: '2px dashed #ccc', borderRadius: '8px' }}>
+        <h3>Загрузка файлов</h3>
+        
+        <div className="field">
+          <label><strong>Описание вакансии (файл)</strong></label>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
+            Поддерживаемые форматы: PDF, DOC, DOCX, RTF, TXT, HTML, ODT, Pages
+          </div>
+          <div className="row">
+            <input
+              type="file"
+              ref={jobFileInputRef}
+              onChange={handleJobFileUpload}
+              accept=".pdf,.doc,.docx,.txt,.rtf,.odt,.pages,.html,.htm"
+              style={{ marginRight: '10px' }}
+            />
+            {jobFile && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ color: 'green' }}>✓ {jobFile.name}</span>
+                <button className="link" onClick={clearJobFile}>Очистить</button>
+              </div>
+            )}
+          </div>
+        </div>
 
-      <div className="field">
-        <label><strong>Описание вакансии</strong></label>
-        <textarea
-          value={jobDescription}
-          onChange={(e) => setJobDescription(e.target.value)}
-          placeholder="Вставьте текст вакансии здесь..."
-        />
-      </div>
+        <div className="field">
+          <label><strong>Резюме (файлы)</strong></label>
+          <div style={{ fontSize: '12px', color: '#666', marginBottom: '5px' }}>
+            Поддерживаемые форматы: PDF, DOC, DOCX, RTF, TXT, HTML, ODT, Pages
+          </div>
+          <div className="row">
+            <input
+              type="file"
+              ref={resumeFileInputRef}
+              onChange={handleResumeFilesUpload}
+              accept=".pdf,.doc,.docx,.txt,.rtf,.odt,.pages,.html,.htm"
+              multiple
+              style={{ marginRight: '10px' }}
+            />
+            {resumeFiles.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span style={{ color: 'green' }}>✓ {resumeFiles.length} файл(ов)</span>
+                <button className="link" onClick={clearResumeFiles}>Очистить</button>
+              </div>
+            )}
+          </div>
+          {resumeFiles.length > 0 && (
+            <div style={{ marginTop: '5px', fontSize: '12px', color: '#666' }}>
+              {resumeFiles.map((file, index) => (
+                <div key={index}>• {file.name}</div>
+              ))}
+            </div>
+          )}
+        </div>
 
-
-      <div className="row">
-        <button className="link" onClick={addResumeField}>
-          Добавить резюме
-        </button>
         <button 
           className="start" 
-          onClick={analyzeText}
-          disabled={isAnalyzing}
+          onClick={analyzeFiles}
+          disabled={isAnalyzing || !jobFile || resumeFiles.length === 0}
+          style={{ marginTop: '10px' }}
         >
           {isAnalyzing ? 'Анализируем...' : 'Анализировать'}
         </button>
       </div>
 
-      <div className="field">
-        {resumes.map((resume, index) => (
-          <div key={index} className="field">
-            <label><strong>Резюме {index + 1}</strong></label>
-            <textarea
-              className="small"
-              value={resume}
-              onChange={(e) => updateResume(index, e.target.value)}
-              placeholder="Вставьте текст резюме..."
-            />
-          </div>
-        ))}
-      </div>
 
       <div className="results">
         <h3>Результаты: {results.length > 0 ? `(${results.length})` : ''}</h3>

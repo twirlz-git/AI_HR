@@ -20,6 +20,8 @@ class VoskHandler(BaseSTT):
         self.openrouter = OpenRouterProcessor()
         self.hr_interviewer = HRInterviewer()
         self.last_speech_time = time.time()  # Инициализируем время последней речи
+        # Gate that enables silence-based auto finalize. True for Q1, disabled after finalize
+        self.silence_gate_enabled = True
         
     async def initialize(self):
         import os
@@ -95,8 +97,10 @@ class VoskHandler(BaseSTT):
                 # logger.debug(f"Checking silence: accumulated='{self.accumulated}', silence={silence_duration:.1f}s, interview_active={self.hr_interviewer.interview_active}")
                 
                 # Обработка молчания в интервью: 5 сек молчания → спиннер + обработка
+                # Выполняется только если включен gate (активируется нажатием кнопки на 2+ вопросах)
                 if (silence_duration >= settings.SILENCE_THRESHOLD and
-                    self.hr_interviewer.interview_active):
+                    self.hr_interviewer.interview_active and
+                    self.silence_gate_enabled):
                     
                     logger.info(f"Silence detected ({settings.SILENCE_THRESHOLD}s), processing answer...")
                     logger.info(f"Sending processing_started message")
@@ -153,6 +157,8 @@ class VoskHandler(BaseSTT):
                 # ВАЖНО: Сбрасываем состояние после обработки
                 self.accumulated = ""
                 self.last_speech_time = time.time()
+                # Отключаем gate до явной активации с фронта для следующего вопроса
+                self.silence_gate_enabled = False
                 
                 # НЕ ОСТАНАВЛИВАЕМ ОБРАБОТКУ - продолжаем слушать следующий ответ
                 # self.stop_processing()
@@ -175,6 +181,8 @@ class VoskHandler(BaseSTT):
                 # ВАЖНО: Сбрасываем состояние после обработки
                 self.accumulated = ""
                 self.last_speech_time = time.time()
+                # Отключаем gate до явной активации с фронта для следующего вопроса
+                self.silence_gate_enabled = False
                 
                 # НЕ ОСТАНАВЛИВАЕМ ОБРАБОТКУ - продолжаем слушать следующий ответ
                 # self.stop_processing()
