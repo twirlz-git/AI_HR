@@ -59,9 +59,8 @@ async def health():
 
 @app.get("/")
 async def root():
-    """Главная страница с веб-интерфейсом"""
-    import os
-    return FileResponse(os.path.join(os.path.dirname(__file__), settings.FRONTEND_PATH))
+    """API status"""
+    return {"status": "AI HR Backend is running", "version": "1.0"}
 
 
 @app.post("/analyze_resumes")
@@ -252,4 +251,4 @@ async def websocket_endpoint(websocket: WebSocket):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8007)
+    uvicorn.run(app, host=settings.HOST, port=settings.PORT)

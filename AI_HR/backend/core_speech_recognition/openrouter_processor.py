@@ -85,7 +85,7 @@ class OpenRouterProcessor:
             logger.error(f"OpenRouter question generation error: {e}")
             return HRPrompts.get_fallback_question(question_number)
     
-    async def generate_hr_interaction(self, job_profile: str, conversation_history: list) -> str:
+    async def generate_hr_interaction(self, job_profile: str, conversation_history: list, current_topic: str = None, is_clarification: bool = False) -> str:
         """Generate HR interaction based on conversation history"""
         if not self.client:
             return "Следующий вопрос будет сгенерирован"
@@ -93,6 +93,14 @@ class OpenRouterProcessor:
         try:
             context = ""
             previous_questions = [qa['question'] for qa in conversation_history]
+            additional_instruction = ""
+            
+            # Topic-based instruction
+            if current_topic:
+                if is_clarification:
+                    additional_instruction = f"**ВАЖНО:** Задай уточняющий вопрос по теме '{current_topic}'. Предыдущий ответ был неясным, нужно получить более конкретную информацию по этой теме."
+                else:
+                    additional_instruction = f"**ВАЖНО:** Задай вопрос по теме '{current_topic}'. Это новая тема интервью."
             
             if conversation_history:
                 last_qa = conversation_history[-1]
@@ -105,7 +113,8 @@ class OpenRouterProcessor:
             system_prompt = HRPrompts.HR_INTERACTION_SYSTEM.format(
                 job_profile=job_profile,
                 previous_questions=json.dumps(previous_questions, ensure_ascii=False),
-                focus=focus
+                focus=focus,
+                additional_instruction=additional_instruction
             )
             
             messages = [

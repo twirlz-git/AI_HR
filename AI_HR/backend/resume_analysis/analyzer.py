@@ -221,7 +221,9 @@ def parse_upload_to_text(upload) -> str:
                 try:
                     if chardet:
                         detected = chardet.detect(data)
-                        encoding = detected.get('encoding', 'utf-8') if detected else 'utf-8'
+                        encoding = detected.get('encoding') if detected else None
+                        if not encoding or encoding is None:
+                            encoding = 'utf-8'
                     else:
                         encoding = 'utf-8'
                     
@@ -236,7 +238,9 @@ def parse_upload_to_text(upload) -> str:
             try:
                 if chardet:
                     detected = chardet.detect(data)
-                    encoding = detected.get('encoding', 'utf-8') if detected else 'utf-8'
+                    encoding = detected.get('encoding') if detected else None
+                    if not encoding or encoding is None:
+                        encoding = 'utf-8'
                 else:
                     encoding = 'utf-8'
                 
@@ -251,7 +255,10 @@ def parse_upload_to_text(upload) -> str:
         try:
             if chardet:
                 detected = chardet.detect(data)
-                encoding = detected.get('encoding', 'utf-8') if detected else 'utf-8'
+                encoding = detected.get('encoding') if detected else None
+                # Ensure encoding is not None
+                if not encoding or encoding is None:
+                    encoding = 'utf-8'
                 logger.info(f"Detected encoding: {encoding}")
                 txt = data.decode(encoding, errors='ignore')
             else:

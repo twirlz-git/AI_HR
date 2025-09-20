@@ -7,11 +7,13 @@ interface WebSocketMessage {
   question?: string;
   question_number?: number;
   total_questions?: number;
+  topic_display?: string;  // Добавляем поле для отображения темы
   improved_answer?: string;
   next_question?: {
     question: string;
     question_number: number;
     total_questions: number;
+    topic_display?: string;  // Добавляем поле для отображения темы в следующем вопросе
   };
   total_answers?: number;
   summary?: string;
@@ -19,6 +21,8 @@ interface WebSocketMessage {
   message?: string;
   reset_timer?: boolean;  // Добавляем поле для сброса таймера
   final_report?: string;  // Добавляем поле для финального отчета
+  feedback_message?: string;  // Добавляем поле для сообщений о динамических вопросах
+  total_questions_updated?: number;  // Добавляем поле для обновленного количества вопросов
 }
 
 const SpeechRecognition: React.FC = () => {
@@ -36,6 +40,7 @@ const SpeechRecognition: React.FC = () => {
   const [showQuestion, setShowQuestion] = useState(false);
   const [showSpinner, setShowSpinner] = useState(false);
   const [finalReport, setFinalReport] = useState<string | null>(null);
+  const [feedbackMessage, setFeedbackMessage] = useState<string>('');
 
   const wsRef = useRef<WebSocket | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
@@ -72,12 +77,14 @@ const SpeechRecognition: React.FC = () => {
       console.log('Gemini improved text:', data.improved_text);
     }
     
-    if (data.type === 'question') {
-      console.log(' Получен вопрос интервью:', data);
-      setCurrentQuestion(data.question || '');
-      setQuestionCounter(`Вопрос ${data.question_number} из ${data.total_questions}`);
-      setShowQuestion(true);
-      setIsWaitingForAnswer(true);
+        if (data.type === 'question') {
+          console.log(' Получен вопрос интервью:', data);
+          setCurrentQuestion(data.question || '');
+          // Use topic_display if available, otherwise fallback to question number
+          const displayText = data.topic_display || `Вопрос ${data.question_number} (из 5-10)`;
+          setQuestionCounter(displayText);
+          setShowQuestion(true);
+          setIsWaitingForAnswer(true);
       
       // НЕ сбрасываем таймер автоматически - только при нажатии кнопки "Начать запись"
     }
@@ -112,12 +119,31 @@ const SpeechRecognition: React.FC = () => {
       // Показываем улучшенный ответ
       setImprovedText(data.improved_answer || '');
       
-      // Сразу показываем следующий вопрос
-      if (data.next_question) {
-        console.log(' Показываем следующий вопрос:', data.next_question.question_number);
-        setCurrentQuestion(data.next_question.question);
-        setQuestionCounter(`Вопрос ${data.next_question.question_number} из ${data.next_question.total_questions}`);
-        setShowQuestion(true);
+      // Показываем сообщение о динамических вопросах, если есть
+      if (data.feedback_message) {
+        setFeedbackMessage(data.feedback_message);
+        console.log(' Показываем сообщение о динамических вопросах:', data.feedback_message);
+        // Автоматически скрываем сообщение через 7 секунд
+        setTimeout(() => {
+          setFeedbackMessage('');
+        }, 7000);
+      }
+      
+      // Обновляем счетчик вопросов, если количество изменилось
+      if (data.total_questions_updated && data.next_question) {
+        const displayText = data.next_question.topic_display || `Вопрос ${data.next_question.question_number} (из 5-10)`;
+        setQuestionCounter(displayText);
+        console.log(' Обновлен счетчик вопросов:', data.total_questions_updated);
+      }
+      
+        // Сразу показываем следующий вопрос
+        if (data.next_question) {
+          console.log(' Показываем следующий вопрос:', data.next_question.question_number);
+          setCurrentQuestion(data.next_question.question);
+          // Use topic_display if available
+          const displayText = data.next_question.topic_display || `Вопрос ${data.next_question.question_number} (из 5-10)`;
+          setQuestionCounter(displayText);
+          setShowQuestion(true);
         
         // НОВАЯ ЛОГИКА: Для 2-го вопроса и далее - ждем нажатия кнопки
         if (data.next_question.question_number >= 2) {
@@ -149,6 +175,7 @@ const SpeechRecognition: React.FC = () => {
       setImprovedText('');
       setShowQuestion(false);
       setAccumulatedText('');
+      setFeedbackMessage(''); // Очищаем сообщения о динамических вопросах
       
       // Сохраняем финальный отчет
       if (data.final_report) {
@@ -445,6 +472,21 @@ const SpeechRecognition: React.FC = () => {
               {improvedText}
             </div>
           </div>
+
+          {/* Feedback message for dynamic questions */}
+          {feedbackMessage && (
+            <div style={{ 
+              marginTop: '20px', 
+              padding: '15px', 
+              backgroundColor: '#fff3cd', 
+              border: '1px solid #ffeaa7', 
+              borderRadius: '8px',
+              color: '#856404'
+            }}>
+              <div style={{ fontSize: '16px', fontWeight: 'bold', marginBottom: '5px' }}>ℹ️ Информация:</div>
+              <div style={{ fontSize: '14px' }}>{feedbackMessage}</div>
+            </div>
+          )}
         </div>
       )}
 
