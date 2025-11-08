@@ -147,23 +147,6 @@ Edit `backend/core_speech_recognition/settings.py` to customize:
 - Server host and port
 - Logging level
 
-## 👥 Contributors
-
-- **DMomot** (Dmitry Momot) - Core development
-- **twirlz-git** (McLovin) - Core development
-
-## 📝 License
-
-No license information provided.
-
-## 🐛 Known Issues
-
-- Requires FFmpeg to be installed system-wide
-- Vosk model must be downloaded separately
-- OpenRouter API key required for resume analysis features
-
-## 🤝 Contributing
-
 Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
