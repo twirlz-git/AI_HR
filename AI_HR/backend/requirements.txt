@@ -11,3 +11,6 @@ python-docx
 striprtf
 beautifulsoup4
 chardet
+langgraph
+langchain-openai
+langchain-core
